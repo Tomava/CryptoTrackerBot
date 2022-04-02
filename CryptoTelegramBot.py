@@ -12,14 +12,9 @@ import gc
 from PIL import Image
 import math
 from TelegramAPI import TELEGRAM_BOT_API
+from Config import *
 
 
-HELP_TEXT = {"!p [coin_name / 'all']": "Gets graphs for a given coin",
-             "!a [min / max] [coin_name] [amount]": "Adds an alert for a given coin",
-             "!a 'list'": "Lists all alerts"}
-SHORT_CRYPTO_NAMES = {"e": "ethereum", "m": "monero", "p": "polkadot", "t": "tron"}
-MIN_ALERT_FILE = "min_alerts.json"
-MAX_ALERT_FILE = "max_alerts.json"
 
 
 # def create_ticks(all_coords, round_to):
@@ -31,9 +26,38 @@ MAX_ALERT_FILE = "max_alerts.json"
 #         ticks.append(i)
 #     return ticks
 
+def get_favourites():
+    """
+    Gets favourites from a file
+    :return: dict
+    """
+    with open("favourites.json", "r", encoding="utf-8") as file:
+        obj = json.load(file)
+    return obj
+
+def get_valid_names():
+    """
+    Fetches valid crypto_names
+    :return: dict
+    """
+    url = "https://api.coingecko.com/api/v3/coins/list?include_platform=false"
+    try:
+        with urllib.request.urlopen(url) as site:
+            temp_data = json.loads(site.read())
+        ids = []
+        for value in temp_data:
+            ids.append(value.get("id"))
+    # Backup
+    except:
+        with open("valid_names.txt", "r", encoding="utf-8") as file:
+            ids = file.readline().split(", ")
+    ids = set(ids)
+    return ids
+
 
 class CryptoTelegramBot:
     def __init__(self):
+        self.__favourite_crypto_names = get_favourites()
         if not os.path.exists(MIN_ALERT_FILE):
             with open(MIN_ALERT_FILE, "w", encoding="utf-8") as file:
                 json.dump({}, file)
@@ -46,7 +70,7 @@ class CryptoTelegramBot:
             self.__max_alerts = json.load(file)
         self.__bot = telepot.Bot(TELEGRAM_BOT_API)
         print(self.__bot.getMe())
-        self.__valid_crypto_names = self.get_valid_names()
+        self.__valid_crypto_names = get_valid_names()
         # Start listening to the telegram bot and whenever a message is  received, the handle function will be called.
         MessageLoop(self.__bot, self.handle_message).run_as_thread()
         print('Listening....')
@@ -54,24 +78,13 @@ class CryptoTelegramBot:
         # while 1:
         #     time.sleep(900)
 
-    def get_valid_names(self):
+    def save_favourites(self):
         """
-        Fetches valid crypto_names
-        :return: dict
+        Saves favourites to a file
+        :return: nothing
         """
-        url = "https://api.coingecko.com/api/v3/coins/list?include_platform=false"
-        try:
-            with urllib.request.urlopen(url) as site:
-                temp_data = json.loads(site.read())
-            ids = []
-            for value in temp_data:
-                ids.append(value.get("id"))
-        # Backup
-        except:
-            with open("valid_names.txt", "r", encoding="utf-8") as file:
-                ids = file.readline().split(", ")
-        ids = set(ids)
-        return ids
+        with open("favourites.json", "w", encoding="utf-8") as file:
+            json.dump(self.__favourite_crypto_names, file)
 
     def make_graph(self, title, data):
         """
@@ -195,8 +208,8 @@ class CryptoTelegramBot:
         :param crypto_name: str
         :return: str
         """
-        if crypto_name in SHORT_CRYPTO_NAMES:
-            crypto_name = SHORT_CRYPTO_NAMES.get(crypto_name)
+        if crypto_name in self.__favourite_crypto_names:
+            crypto_name = self.__favourite_crypto_names.get(crypto_name)
         elif crypto_name not in self.__valid_crypto_names:
             return None
         return crypto_name
@@ -212,7 +225,7 @@ class CryptoTelegramBot:
         images = []
         if crypto_name == "all":
             self.__bot.sendMessage(chat_id, f"Fetching all favourites.")
-            for crypto_name in SHORT_CRYPTO_NAMES.values():
+            for crypto_name in self.__favourite_crypto_names.values():
                 images.append(self.get_images(crypto_name))
         else:
             crypto_name = self.get_crypto_name(crypto_name)
@@ -248,8 +261,7 @@ class CryptoTelegramBot:
         :return: nothing
         """
         chat_id = str(chat_id)
-        command = commands[1]
-        if command == "list":
+        if len(commands) < 4:
             message = ""
             for coin_id in self.__min_alerts.get(chat_id):
                 message += f"{coin_id.capitalize()}: <{self.__min_alerts.get(chat_id).get(coin_id)} €\n"
@@ -257,6 +269,7 @@ class CryptoTelegramBot:
                 message += f"{coin_id.capitalize()}: >{self.__max_alerts.get(chat_id).get(coin_id)} €\n"
             self.__bot.sendMessage(chat_id, message)
             return
+        command = commands[1]
         crypto_name = commands[2].lower()
         amount = float(commands[3])
         crypto_name = self.get_crypto_name(crypto_name)
@@ -333,8 +346,44 @@ class CryptoTelegramBot:
         """
         message = ""
         for command in HELP_TEXT:
-            message += f"{command}: {HELP_TEXT.get(command)}\n"
-        self.__bot.sendMessage(chat_id, message)
+            message += f"<u><b>{command}</b></u>: <i>{HELP_TEXT.get(command)}</i>\n"
+        self.__bot.sendMessage(chat_id, message, parse_mode="HTML")
+
+    def favourite_command(self, chat_id, commands):
+        """
+        Handles !favourite command
+        :param chat_id:
+        :param commands: List
+        :return: nothing
+        """
+        if len(commands) < 3:
+            message = ""
+            for short_name, full_name in self.__favourite_crypto_names.items():
+                message += f"{short_name}: {full_name}\n"
+            self.__bot.sendMessage(chat_id, message)
+            return
+        short_name = commands[1].lower()
+        full_name = commands[2].lower()
+        if short_name == "remove":
+            if full_name in self.__favourite_crypto_names:
+                self.__favourite_crypto_names.pop(full_name)
+                self.__bot.sendMessage(chat_id, f"Remove a favourite from '{full_name}'")
+                self.save_favourites()
+            else:
+                self.__bot.sendMessage(chat_id, f"That favourite is not in use!")
+            return
+        else:
+            if short_name in self.__favourite_crypto_names or short_name in self.__valid_crypto_names:
+                self.__bot.sendMessage(chat_id, f"That favourite is already in use!")
+                return
+            real_name = self.get_crypto_name(full_name)
+            if real_name is None:
+                self.__bot.sendMessage(chat_id, "Not a valid cryptocurrency!")
+            else:
+                self.__favourite_crypto_names[short_name] = real_name
+                self.save_favourites()
+                self.__bot.sendMessage(chat_id, f"Added a favourite for '{real_name}' as '{short_name}'")
+
 
     def handle_message(self, message):
         print("Message received!")
@@ -348,6 +397,10 @@ class CryptoTelegramBot:
             self.alert_command(chat_id, commands)
         elif command == "!h":
             self.help_command(chat_id, commands)
+        elif command == "!f":
+            self.favourite_command(chat_id, commands)
+        else:
+            self.__bot.sendMessage(chat_id, "Not a valid command")
 
 
 def main():
