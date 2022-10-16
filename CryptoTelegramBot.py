@@ -31,9 +31,10 @@ def get_favourites():
     Gets favourites from a file
     :return: dict
     """
-    with open("favourites.json", "r", encoding="utf-8") as file:
+    with open(FAVOURITES_FILE, "r", encoding="utf-8") as file:
         obj = json.load(file)
     return obj
+
 
 def get_valid_names():
     """
@@ -68,6 +69,11 @@ class CryptoTelegramBot:
                 json.dump({}, file)
         with open(MAX_ALERT_FILE, "r", encoding="utf-8") as file:
             self.__max_alerts = json.load(file)
+        if not os.path.exists(ERROR_NOTIFICATIONS_FILE):
+            with open(ERROR_NOTIFICATIONS_FILE, "w", encoding="utf-8") as file:
+                json.dump([], file)
+        with open(ERROR_NOTIFICATIONS_FILE, "r", encoding="utf-8") as file:
+            self.__error_notifications = json.load(file)
         self.__bot = telepot.Bot(TELEGRAM_BOT_API)
         print(self.__bot.getMe())
         self.__valid_crypto_names = get_valid_names()
@@ -83,8 +89,16 @@ class CryptoTelegramBot:
         Saves favourites to a file
         :return: nothing
         """
-        with open("favourites.json", "w", encoding="utf-8") as file:
+        with open(FAVOURITES_FILE, "w", encoding="utf-8") as file:
             json.dump(self.__favourite_crypto_names, file)
+
+    def save_error_notifications(self):
+        """
+        Saves favourites to a file
+        :return: nothing
+        """
+        with open(ERROR_NOTIFICATIONS_FILE, "w", encoding="utf-8") as file:
+            json.dump(self.__error_notifications, file)
 
     def make_graph(self, title, data):
         """
@@ -331,7 +345,7 @@ class CryptoTelegramBot:
                                        f"(>{self.__max_alerts.get(chat_id).get(coin_id)} €)\n"
                             self.__max_alerts.get(chat_id).pop(coin_id, None)
                             self.write_alerts_to_disk()
-                if error:
+                if error and chat_id in self.__error_notifications:
                     self.__bot.sendMessage(chat_id, "Error while fetching current price!")
                 if message != "":
                     self.__bot.sendMessage(chat_id, message)
@@ -384,6 +398,22 @@ class CryptoTelegramBot:
                 self.save_favourites()
                 self.__bot.sendMessage(chat_id, f"Added a favourite for '{real_name}' as '{short_name}'")
 
+    def error_command(self, chat_id):
+        """
+        Handles !alert command
+        :param chat_id:
+        :param commands: list
+        :return: nothing
+        """
+        chat_id = str(chat_id)
+        if chat_id in self.__error_notifications:
+            self.__error_notifications.remove(chat_id)
+            self.__bot.sendMessage(chat_id, "Removed this chat from error notifications")
+        else:
+            self.__error_notifications.append(chat_id)
+            self.__bot.sendMessage(chat_id, "Added this chat to error notifications")
+        self.save_error_notifications()
+
 
     def handle_message(self, message):
         print("Message received!")
@@ -399,6 +429,8 @@ class CryptoTelegramBot:
             self.help_command(chat_id, commands)
         elif command == "!f":
             self.favourite_command(chat_id, commands)
+        elif command == "!e":
+            self.error_command(chat_id)
         else:
             self.__bot.sendMessage(chat_id, "Not a valid command")
 

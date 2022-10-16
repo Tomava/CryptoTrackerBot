@@ -30,3 +30,19 @@ pip install -r requirements.txt
 ```
 !a list
 ```
+- Add a favourite:
+```
+!f [short_name] [full_name]
+```
+- Remove a favourite:
+```
+!f remove [short_name]
+```
+- List favourites:
+```
+!f
+```
+- Toggle error notifications:
+```
+!e
+```

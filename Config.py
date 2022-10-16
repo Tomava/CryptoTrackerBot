@@ -3,6 +3,9 @@ HELP_TEXT = {"!p [coin_name / 'all']": "Gets graphs for a given coin",
              "!a": "Lists all alerts",
              "!f [short_name] [full_name]": "Adds a short version of a given full name",
              "!f": "Lists all favourites",
-             "!f remove [short_name]": "Removes a favourite"}
+             "!f remove [short_name]": "Removes a favourite",
+             "!e": "Toggles error notifications for this chat"}
 MIN_ALERT_FILE = "min_alerts.json"
 MAX_ALERT_FILE = "max_alerts.json"
+ERROR_NOTIFICATIONS_FILE = "error_notifications.json"
+FAVOURITES_FILE = "favourites.json"

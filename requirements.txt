@@ -1,2 +1,2 @@
-matplotlib==3.4.2
-telepot==12.7
+matplotlib>=3.4.2
+telepot>=12.7
