@@ -23,12 +23,16 @@ from Config import *
 #         ticks.append(i)
 #     return ticks
 
-def get_favourites():
+def get_from_file(file_name):
     """
     Gets favourites from a file
+    :param file_name str
     :return: dict
     """
-    with open(FAVOURITES_FILE, "r", encoding="utf-8") as file:
+    if not os.path.exists(file_name):
+        with open(file_name, "w", encoding="utf-8") as file:
+            json.dump({}, file)
+    with open(file_name, "r", encoding="utf-8") as file:
         obj = json.load(file)
     return obj
 
@@ -55,22 +59,15 @@ def get_valid_names():
 
 class CryptoTelegramBot:
     def __init__(self):
-        self.__favourite_crypto_names = get_favourites()
-        if not os.path.exists(MIN_ALERT_FILE):
-            with open(MIN_ALERT_FILE, "w", encoding="utf-8") as file:
-                json.dump({}, file)
-        with open(MIN_ALERT_FILE, "r", encoding="utf-8") as file:
-            self.__min_alerts = json.load(file)
-        if not os.path.exists(MAX_ALERT_FILE):
-            with open(MAX_ALERT_FILE, "w", encoding="utf-8") as file:
-                json.dump({}, file)
-        with open(MAX_ALERT_FILE, "r", encoding="utf-8") as file:
-            self.__max_alerts = json.load(file)
+        self.__favourite_crypto_names = get_from_file(FAVOURITES_FILE)
+        self.__min_alerts = get_from_file(MIN_ALERT_FILE)
+        self.__max_alerts = get_from_file(MAX_ALERT_FILE)
         if not os.path.exists(ERROR_NOTIFICATIONS_FILE):
             with open(ERROR_NOTIFICATIONS_FILE, "w", encoding="utf-8") as file:
                 json.dump([], file)
         with open(ERROR_NOTIFICATIONS_FILE, "r", encoding="utf-8") as file:
             self.__error_notifications = json.load(file)
+
         self.__bot = telepot.Bot(TELEGRAM_BOT_API)
         print(self.__bot.getMe())
         self.__valid_crypto_names = get_valid_names()
