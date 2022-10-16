@@ -8,7 +8,10 @@ A Telegram bot for tracking crypto currency prices
 pip install -r requirements.txt
 ```
 3. Get telegram bot token
-4. Add telegram bot token to **TelegramAPI.py**
+4. Create a file called *.env* and add the following line:
+```
+TELEGRAM_BOT_API=REPLACE_THIS_WITH_KEY
+```
 5. Run **CryptoTelegramBot.py**
 
 ## Usage

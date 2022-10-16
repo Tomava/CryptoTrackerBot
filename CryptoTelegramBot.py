@@ -11,10 +11,7 @@ import time
 import gc
 from PIL import Image
 import math
-from TelegramAPI import TELEGRAM_BOT_API
 from Config import *
-
-
 
 
 # def create_ticks(all_coords, round_to):

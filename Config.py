@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+import os
 HELP_TEXT = {"!p [coin_name / 'all']": "Gets graphs for a given coin",
              "!a [min / max] [coin_name] [amount]": "Adds an alert for a given coin",
              "!a": "Lists all alerts",
@@ -9,3 +11,5 @@ MIN_ALERT_FILE = "min_alerts.json"
 MAX_ALERT_FILE = "max_alerts.json"
 ERROR_NOTIFICATIONS_FILE = "error_notifications.json"
 FAVOURITES_FILE = "favourites.json"
+load_dotenv()
+TELEGRAM_BOT_API = os.getenv('TELEGRAM_BOT_API')
