@@ -51,7 +51,7 @@ def get_valid_names():
             ids.append(value.get("id"))
     # Backup
     except:
-        with open("valid_names.txt", "r", encoding="utf-8") as file:
+        with open(VALID_NAMES, "r", encoding="utf-8") as file:
             ids = file.readline().split(", ")
     ids = set(ids)
     return ids

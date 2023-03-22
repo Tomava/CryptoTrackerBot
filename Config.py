@@ -7,9 +7,11 @@ HELP_TEXT = {"!p [coin_name / 'all']": "Gets graphs for a given coin",
              "!f": "Lists all favourites",
              "!f remove [short_name]": "Removes a favourite",
              "!e": "Toggles error notifications for this chat"}
-MIN_ALERT_FILE = "min_alerts.json"
-MAX_ALERT_FILE = "max_alerts.json"
-ERROR_NOTIFICATIONS_FILE = "error_notifications.json"
-FAVOURITES_FILE = "favourites.json"
+DIRECTORY = "data"
+MIN_ALERT_FILE = f"{DIRECTORY}{os.sep}min_alerts.json"
+MAX_ALERT_FILE = f"{DIRECTORY}{os.sep}max_alerts.json"
+ERROR_NOTIFICATIONS_FILE = f"{DIRECTORY}{os.sep}error_notifications.json"
+FAVOURITES_FILE = f"{DIRECTORY}{os.sep}favourites.json"
+VALID_NAMES = f"{DIRECTORY}{os.sep}valid_names.txt"
 load_dotenv()
 TELEGRAM_BOT_API = os.getenv('TELEGRAM_BOT_API')
