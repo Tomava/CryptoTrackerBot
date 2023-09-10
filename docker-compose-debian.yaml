@@ -1,0 +1,11 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - /home/debian/CryptoTrackerBot/data:/home/telegram/data
+      - /etc/localtime:/etc/localtime
+    restart: always
+    environment:
+      - TELEGRAM_BOT_API

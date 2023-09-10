@@ -3,4 +3,3 @@ __pycache__
 *.png
 *.env
 *.json
-docker-compose-pi.yaml
