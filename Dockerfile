@@ -8,6 +8,7 @@ WORKDIR /home/telegram
 
 COPY *.py ./
 COPY requirements.txt ./
+COPY .env ./
 
 USER telegram
 

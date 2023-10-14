@@ -1,12 +1,11 @@
 import os
 # import memory_profiler
-import telepot
+import telebot
 import urllib.request
 import json
 import io
 from datetime import datetime
 import matplotlib.pyplot as plt
-from telepot.loop import MessageLoop
 import time
 import gc
 from PIL import Image
@@ -57,6 +56,16 @@ def get_valid_names():
     return ids
 
 
+def get_arguments(message):
+    """
+    Parse arguments from message
+    :param message: Message
+    :return: list
+    """
+    arguments = message.text.split()
+    return arguments[1:]
+
+
 class CryptoTelegramBot:
     def __init__(self):
         self.__favourite_crypto_names = get_from_file(FAVOURITES_FILE)
@@ -68,11 +77,11 @@ class CryptoTelegramBot:
         with open(ERROR_NOTIFICATIONS_FILE, "r", encoding="utf-8") as file:
             self.__error_notifications = json.load(file)
 
-        self.__bot = telepot.Bot(TELEGRAM_BOT_API)
-        print(self.__bot.getMe())
+        self.__bot = telebot.TeleBot(TELEGRAM_BOT_API)
         self.__valid_crypto_names = get_valid_names()
         # Start listening to the telegram bot and whenever a message is  received, the handle function will be called.
-        MessageLoop(self.__bot, self.handle_message).run_as_thread()
+        self.bot_messages()
+        self.__bot.infinity_polling()
         print('Listening....')
         self.handle_alerts()
         # while 1:
@@ -222,26 +231,29 @@ class CryptoTelegramBot:
             return None
         return crypto_name
 
-    def price_command(self, chat_id, commands):
+    def price_command(self, message):
         """
         Handles !price command
-        :param chat_id:
-        :param commands: list
+        :param message: Message
         :return: nothing
         """
-        crypto_name = commands[1].lower()
+        arguments = get_arguments(message)
+        if len(arguments) < 1:
+            self.__bot.reply_to(message, "Too few arguments!")
+            return
+        crypto_name = arguments[1].lower()
         images = []
         if crypto_name == "all":
-            self.__bot.sendMessage(chat_id, f"Fetching all favourites.")
+            self.__bot.reply_to(message, f"Fetching all favourites.")
             for crypto_name in self.__favourite_crypto_names.values():
                 images.append(self.get_images(crypto_name))
         else:
             crypto_name = self.get_crypto_name(crypto_name)
             if crypto_name is not None:
-                self.__bot.sendMessage(chat_id, f"Fetching {crypto_name.capitalize()}.")
+                self.__bot.reply_to(message, f"Fetching {crypto_name.capitalize()}.")
                 images.append(self.get_images(crypto_name))
             else:
-                self.__bot.sendMessage(chat_id, "Not a valid cryptocurrency!")
+                self.__bot.reply_to(message, "Not a valid cryptocurrency!")
                 return
         # Uncomment line below and comment the line below it to combine all photos
         # new_im = combine_horizontally(images)
@@ -249,7 +261,7 @@ class CryptoTelegramBot:
             buf = io.BytesIO()
             new_im.save(buf, "png")
             buf.seek(0)
-            self.__bot.sendPhoto(chat_id, buf)
+            self.__bot.send_photo(message.chat.id, buf)
 
     def write_alerts_to_disk(self):
         """
@@ -261,39 +273,39 @@ class CryptoTelegramBot:
         with open(MAX_ALERT_FILE, "w", encoding="utf-8") as file:
             json.dump(self.__max_alerts, file)
 
-    def alert_command(self, chat_id, commands):
+    def alert_command(self, message):
         """
         Handles !alert command
-        :param chat_id:
-        :param commands: list
+        :param message: Message
         :return: nothing
         """
-        chat_id = str(chat_id)
-        if len(commands) < 4:
+        arguments = get_arguments(message)
+        chat_id = str(message.chat.id)
+        if len(arguments) < 4:
             message = ""
             for coin_id in self.__min_alerts.get(chat_id):
                 message += f"{coin_id.capitalize()}: <{self.__min_alerts.get(chat_id).get(coin_id)} €\n"
             for coin_id in self.__max_alerts.get(chat_id):
                 message += f"{coin_id.capitalize()}: >{self.__max_alerts.get(chat_id).get(coin_id)} €\n"
-            self.__bot.sendMessage(chat_id, message)
+            self.__bot.send_message(chat_id, message)
             return
-        command = commands[1]
-        crypto_name = commands[2].lower()
-        amount = float(commands[3])
+        command = arguments[1]
+        crypto_name = arguments[2].lower()
+        amount = float(arguments[3])
         crypto_name = self.get_crypto_name(crypto_name)
         if crypto_name is None:
-            self.__bot.sendMessage(chat_id, "Not a valid cryptocurrency!")
+            self.__bot.send_messagege(chat_id, "Not a valid cryptocurrency!")
             return
         if command == "min":
             self.__min_alerts[chat_id][crypto_name] = amount
-            self.__bot.sendMessage(chat_id, f"Added alert for {crypto_name.capitalize()} at <{amount} €")
+            self.__bot.send_messagege(chat_id, f"Added alert for {crypto_name.capitalize()} at <{amount} €")
             # Add empty dictionary to max_alerts to not cause error on handle_alerts
             if chat_id not in self.__max_alerts:
                 self.__max_alerts[chat_id] = {}
             self.write_alerts_to_disk()
         elif command == "max":
             self.__max_alerts[chat_id][crypto_name] = amount
-            self.__bot.sendMessage(chat_id, f"Added alert for {crypto_name.capitalize()} at >{amount} €")
+            self.__bot.send_messagege(chat_id, f"Added alert for {crypto_name.capitalize()} at >{amount} €")
             # Add empty dictionary to min_alerts to not cause error on handle_alerts
             if chat_id not in self.__min_alerts:
                 self.__max_alerts[chat_id] = {}
@@ -340,93 +352,96 @@ class CryptoTelegramBot:
                             self.__max_alerts.get(chat_id).pop(coin_id, None)
                             self.write_alerts_to_disk()
                 if error and chat_id in self.__error_notifications:
-                    self.__bot.sendMessage(chat_id, "Error while fetching current price!")
+                    self.__bot.send_message(chat_id, "Error while fetching current price!")
                 if message != "":
-                    self.__bot.sendMessage(chat_id, message)
+                    self.__bot.send_message(chat_id, message)
             time.sleep(900)
 
-    def help_command(self, chat_id, commands):
+    def help_command(self, message):
         """
         Handles !help command
-        :param chat_id:
-        :param commands: list
+        :param message: Message
         :return: nothing
         """
+        chat_id = str(message.chat.id)
         message = ""
         for command in HELP_TEXT:
             message += f"<u><b>{command}</b></u>: <i>{HELP_TEXT.get(command)}</i>\n"
-        self.__bot.sendMessage(chat_id, message, parse_mode="HTML")
+        self.__bot.send_message(chat_id, message, parse_mode="HTML")
 
-    def favourite_command(self, chat_id, commands):
+    def favourite_command(self, message):
         """
         Handles !favourite command
-        :param chat_id:
-        :param commands: List
+        :param message: Message
         :return: nothing
         """
-        if len(commands) < 3:
+        arguments = get_arguments(message)
+        chat_id = str(message.chat.id)
+        if len(arguments) < 3:
             message = ""
             for short_name, full_name in self.__favourite_crypto_names.items():
                 message += f"{short_name}: {full_name}\n"
-            self.__bot.sendMessage(chat_id, message)
+            self.__bot.send_message(chat_id, message)
             return
-        short_name = commands[1].lower()
-        full_name = commands[2].lower()
+        short_name = arguments[1].lower()
+        full_name = arguments[2].lower()
         if short_name == "remove":
             if full_name in self.__favourite_crypto_names:
                 self.__favourite_crypto_names.pop(full_name)
-                self.__bot.sendMessage(chat_id, f"Remove a favourite from '{full_name}'")
+                self.__bot.send_message(chat_id, f"Remove a favourite from '{full_name}'")
                 self.save_favourites()
             else:
-                self.__bot.sendMessage(chat_id, f"That favourite is not in use!")
+                self.__bot.send_message(chat_id, f"That favourite is not in use!")
             return
         else:
             if short_name in self.__favourite_crypto_names or short_name in self.__valid_crypto_names:
-                self.__bot.sendMessage(chat_id, f"That favourite is already in use!")
+                self.__bot.send_message(chat_id, f"That favourite is already in use!")
                 return
             real_name = self.get_crypto_name(full_name)
             if real_name is None:
-                self.__bot.sendMessage(chat_id, "Not a valid cryptocurrency!")
+                self.__bot.send_message(chat_id, "Not a valid cryptocurrency!")
             else:
                 self.__favourite_crypto_names[short_name] = real_name
                 self.save_favourites()
-                self.__bot.sendMessage(chat_id, f"Added a favourite for '{real_name}' as '{short_name}'")
+                self.__bot.send_message(chat_id, f"Added a favourite for '{real_name}' as '{short_name}'")
 
-    def error_command(self, chat_id):
+    def error_command(self, message):
         """
         Handles !alert command
-        :param chat_id:
-        :param commands: list
+        :param message: Message
         :return: nothing
         """
-        chat_id = str(chat_id)
+        chat_id = str(message.chat.id)
         if chat_id in self.__error_notifications:
             self.__error_notifications.remove(chat_id)
-            self.__bot.sendMessage(chat_id, "Removed this chat from error notifications")
+            self.__bot.send_message(chat_id, "Removed this chat from error notifications")
         else:
             self.__error_notifications.append(chat_id)
-            self.__bot.sendMessage(chat_id, "Added this chat to error notifications")
+            self.__bot.send_message(chat_id, "Added this chat to error notifications")
         self.save_error_notifications()
 
-
-    def handle_message(self, message):
+    def bot_messages(self):
         print("Message received!")
-        chat_id = message.get("chat").get("id")
-        message_text = message.get("text")
-        commands = message_text.split()
-        command = commands[0]
-        if command == "!p":
-            self.price_command(chat_id, commands)
-        elif command == "!a":
-            self.alert_command(chat_id, commands)
-        elif command == "!h":
-            self.help_command(chat_id, commands)
-        elif command == "!f":
-            self.favourite_command(chat_id, commands)
-        elif command == "!e":
-            self.error_command(chat_id)
-        else:
-            self.__bot.sendMessage(chat_id, "Not a valid command")
+
+        @self.__bot.message_handler(commands=["p"])
+        def price_handler(message):
+            self.price_command(message)
+
+        @self.__bot.message_handler(commands=["a"])
+        def alert_handler(message):
+            self.alert_command(message)
+
+        @self.__bot.message_handler(commands=["h"])
+        def help_handler(message):
+            self.help_command(message)
+
+        @self.__bot.message_handler(commands=["f"])
+        def favourite_handler(message):
+            self.favourite_command(message)
+
+        @self.__bot.message_handler(commands=["e"])
+        def error_handler(message):
+            self.error_command(message)
 
 
 def main():

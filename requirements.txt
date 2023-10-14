@@ -1,4 +1,4 @@
 matplotlib==3.6.1
 Pillow==9.3.0
 python-dotenv==0.21.0
-telepot==12.7
+pyTelegramBotAPI>=4.11.0
