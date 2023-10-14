@@ -249,7 +249,7 @@ class CryptoTelegramBot:
         if len(arguments) < 1:
             self.__bot.reply_to(message, "Too few arguments!")
             return
-        crypto_name = arguments[1].lower()
+        crypto_name = arguments[0].lower()
         images = []
         if crypto_name == "all":
             self.__bot.reply_to(message, f"Fetching all favourites.")
@@ -289,7 +289,7 @@ class CryptoTelegramBot:
         """
         arguments = get_arguments(message)
         chat_id = str(message.chat.id)
-        if len(arguments) < 4:
+        if len(arguments) < 3:
             message = ""
             for coin_id in self.__min_alerts.get(chat_id):
                 message += f"{coin_id.capitalize()}: <{self.__min_alerts.get(chat_id).get(coin_id)} €\n"
@@ -297,9 +297,9 @@ class CryptoTelegramBot:
                 message += f"{coin_id.capitalize()}: >{self.__max_alerts.get(chat_id).get(coin_id)} €\n"
             self.__bot.send_message(chat_id, message)
             return
-        command = arguments[1]
-        crypto_name = arguments[2].lower()
-        amount = float(arguments[3])
+        command = arguments[0]
+        crypto_name = arguments[1].lower()
+        amount = float(arguments[2])
         crypto_name = self.get_crypto_name(crypto_name)
         if crypto_name is None:
             self.__bot.send_messagege(chat_id, "Not a valid cryptocurrency!")
@@ -385,14 +385,14 @@ class CryptoTelegramBot:
         """
         arguments = get_arguments(message)
         chat_id = str(message.chat.id)
-        if len(arguments) < 3:
+        if len(arguments) < 2:
             message = ""
             for short_name, full_name in self.__favourite_crypto_names.items():
                 message += f"{short_name}: {full_name}\n"
             self.__bot.send_message(chat_id, message)
             return
-        short_name = arguments[1].lower()
-        full_name = arguments[2].lower()
+        short_name = arguments[0].lower()
+        full_name = arguments[1].lower()
         if short_name == "remove":
             if full_name in self.__favourite_crypto_names:
                 self.__favourite_crypto_names.pop(full_name)
