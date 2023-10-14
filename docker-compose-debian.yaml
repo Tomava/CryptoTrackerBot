@@ -7,3 +7,7 @@ services:
       - /home/debian/CryptoTrackerBot/data:/home/telegram/data
       - /etc/localtime:/etc/localtime
     restart: always
+    logging:
+      driver: "json-file"
+    environment:
+      - PYTHONUNBUFFERED=1

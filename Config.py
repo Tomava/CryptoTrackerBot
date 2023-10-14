@@ -15,3 +15,4 @@ FAVOURITES_FILE = f"{DIRECTORY}{os.sep}favourites.json"
 VALID_NAMES = f"{DIRECTORY}{os.sep}valid_names.txt"
 load_dotenv()
 TELEGRAM_BOT_API = os.getenv('TELEGRAM_BOT_API')
+AUTHORIZED_USERS = list(os.getenv("AUTHORIZED_USERS").split(" "))

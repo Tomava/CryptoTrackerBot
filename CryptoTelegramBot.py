@@ -76,7 +76,7 @@ class CryptoTelegramBot:
                 json.dump([], file)
         with open(ERROR_NOTIFICATIONS_FILE, "r", encoding="utf-8") as file:
             self.__error_notifications = json.load(file)
-
+        self.authorized_users = AUTHORIZED_USERS
         self.__bot = telebot.TeleBot(TELEGRAM_BOT_API)
         self.__valid_crypto_names = get_valid_names()
         # Start listening to the telegram bot and whenever a message is  received, the handle function will be called.
@@ -86,6 +86,14 @@ class CryptoTelegramBot:
         self.handle_alerts()
         # while 1:
         #     time.sleep(900)
+
+    def is_user_authorized(self, func):
+        def wrapped(message):
+            if str(message.from_user.id) in self.authorized_users:
+                func(message)
+            else:
+                print(f"User {message.from_user.id} not authorized!")
+        return wrapped
 
     def save_favourites(self):
         """
@@ -424,22 +432,27 @@ class CryptoTelegramBot:
         print("Message received!")
 
         @self.__bot.message_handler(commands=["p"])
+        @self.is_user_authorized
         def price_handler(message):
             self.price_command(message)
 
         @self.__bot.message_handler(commands=["a"])
+        @self.is_user_authorized
         def alert_handler(message):
             self.alert_command(message)
 
         @self.__bot.message_handler(commands=["h"])
+        @self.is_user_authorized
         def help_handler(message):
             self.help_command(message)
 
         @self.__bot.message_handler(commands=["f"])
+        @self.is_user_authorized
         def favourite_handler(message):
             self.favourite_command(message)
 
         @self.__bot.message_handler(commands=["e"])
+        @self.is_user_authorized
         def error_handler(message):
             self.error_command(message)
 
