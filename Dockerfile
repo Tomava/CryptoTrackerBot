@@ -1,16 +1,17 @@
 FROM python:3.11-buster
 
-RUN useradd -u 1000 telegram
-RUN mkdir /home/telegram
-RUN chown -R telegram /home/telegram
+# Uncomment everything below if not running rootless Docker
 
-WORKDIR /home/telegram
+# RUN useradd -u 1000 telegram
+# RUN mkdir /home/telegram
+# RUN chown -R telegram /home/telegram
+#USER telegram
+
+WORKDIR /app
 
 COPY *.py ./
 COPY requirements.txt ./
 COPY .env ./
-
-USER telegram
 
 RUN pip3.11 install -r requirements.txt
 
