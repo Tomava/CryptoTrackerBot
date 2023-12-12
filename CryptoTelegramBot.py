@@ -299,21 +299,25 @@ class CryptoTelegramBot:
             return
         command = arguments[0]
         crypto_name = arguments[1].lower()
-        amount = float(arguments[2])
+        try:
+            amount = float(arguments[2])
+        except ValueError:
+            self.__bot.send_message(chat_id, "Not a valid amount!")
+            return
         crypto_name = self.get_crypto_name(crypto_name)
         if crypto_name is None:
-            self.__bot.send_messagege(chat_id, "Not a valid cryptocurrency!")
+            self.__bot.send_message(chat_id, "Not a valid cryptocurrency!")
             return
         if command == "min":
             self.__min_alerts[chat_id][crypto_name] = amount
-            self.__bot.send_messagege(chat_id, f"Added alert for {crypto_name.capitalize()} at <{amount} €")
+            self.__bot.send_message(chat_id, f"Added alert for {crypto_name.capitalize()} at <{amount} €")
             # Add empty dictionary to max_alerts to not cause error on handle_alerts
             if chat_id not in self.__max_alerts:
                 self.__max_alerts[chat_id] = {}
             self.write_alerts_to_disk()
         elif command == "max":
             self.__max_alerts[chat_id][crypto_name] = amount
-            self.__bot.send_messagege(chat_id, f"Added alert for {crypto_name.capitalize()} at >{amount} €")
+            self.__bot.send_message(chat_id, f"Added alert for {crypto_name.capitalize()} at >{amount} €")
             # Add empty dictionary to min_alerts to not cause error on handle_alerts
             if chat_id not in self.__min_alerts:
                 self.__max_alerts[chat_id] = {}
