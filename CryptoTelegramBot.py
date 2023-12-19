@@ -1,5 +1,6 @@
 import os
 # import memory_profiler
+import threading
 import telebot
 import urllib.request
 import json
@@ -9,7 +10,6 @@ import matplotlib.pyplot as plt
 import time
 import gc
 from PIL import Image
-import math
 from Config import *
 
 
@@ -79,13 +79,50 @@ class CryptoTelegramBot:
         self.authorized_users = AUTHORIZED_USERS
         self.__bot = telebot.TeleBot(TELEGRAM_BOT_API)
         self.__valid_crypto_names = get_valid_names()
-        # Start listening to the telegram bot and whenever a message is  received, the handle function will be called.
-        self.bot_messages()
-        self.__bot.infinity_polling()
+
+        @self.__bot.message_handler(commands=["p"])
+        @self.is_user_authorized
+        def price_handler(message):
+            self.price_command(message)
+
+        @self.__bot.message_handler(commands=["a"])
+        @self.is_user_authorized
+        def alert_handler(message):
+            self.alert_command(message)
+
+        @self.__bot.message_handler(commands=["h"])
+        @self.is_user_authorized
+        def help_handler(message):
+            self.help_command(message)
+
+        @self.__bot.message_handler(commands=["f"])
+        @self.is_user_authorized
+        def favourite_handler(message):
+            self.favourite_command(message)
+
+        @self.__bot.message_handler(commands=["e"])
+        @self.is_user_authorized
+        def error_handler(message):
+            self.error_command(message)
+
+        # Start listening to the telegram bot and whenever a message is received, the handle function will be called.
+        self.start_bot()
+
+    def start_bot(self):
+        # Start the bot's polling loop and the periodic check loop
+        threading.Thread(target=self.poll_bot).start()
+        threading.Thread(target=self.run_periodic_check).start()
+
+    def run_periodic_check(self):
+        # Run the scheduled tasks in a separate thread
+        while True:
+            self.handle_alerts()
+            time.sleep(900)
+
+    def poll_bot(self):
+        # Start the bot's polling loop
         print('Listening....')
-        self.handle_alerts()
-        # while 1:
-        #     time.sleep(900)
+        self.__bot.infinity_polling()
 
     def is_user_authorized(self, func):
         def wrapped(message):
@@ -335,39 +372,37 @@ class CryptoTelegramBot:
                 with urllib.request.urlopen(url) as site:
                     current_price = json.loads(site.read()).get("market_data").get("current_price").get("eur")
                     return current_price
-            except:
-                print("ERROR IN ALERTS")
+            except Exception as error:
+                print("ERROR IN ALERTS:", error)
                 return None
 
-        while True:
-            error = False
-            message = ""
-            for chat_id in set(self.__min_alerts.keys()).union(set(self.__max_alerts.keys())):
-                chat_id = str(chat_id)
-                for coin_id in set(self.__min_alerts.get(chat_id).keys()).union(set(self.__max_alerts.get(chat_id).keys())):
-                    current_price = get_data(coin_id)
-                    if current_price is None:
-                        error = True
-                        continue
-                    # Check min alerts
-                    if coin_id in self.__min_alerts.get(chat_id):
-                        if current_price <= self.__min_alerts.get(chat_id).get(coin_id):
-                            message += f"{coin_id.capitalize()} is currently at {current_price} € " \
-                                       f"(<{self.__min_alerts.get(chat_id).get(coin_id)} €)\n"
-                            self.__min_alerts.get(chat_id).pop(coin_id, None)
-                            self.write_alerts_to_disk()
-                    # Check max alert
-                    if coin_id in self.__max_alerts.get(chat_id):
-                        if current_price >= self.__max_alerts.get(chat_id).get(coin_id):
-                            message += f"{coin_id.capitalize()} is currently at {current_price} € " \
-                                       f"(>{self.__max_alerts.get(chat_id).get(coin_id)} €)\n"
-                            self.__max_alerts.get(chat_id).pop(coin_id, None)
-                            self.write_alerts_to_disk()
-                if error and chat_id in self.__error_notifications:
-                    self.__bot.send_message(chat_id, "Error while fetching current price!")
-                if message != "":
-                    self.__bot.send_message(chat_id, message)
-            time.sleep(900)
+        error = False
+        message = ""
+        for chat_id in set(self.__min_alerts.keys()).union(set(self.__max_alerts.keys())):
+            chat_id = str(chat_id)
+            for coin_id in set(self.__min_alerts.get(chat_id).keys()).union(set(self.__max_alerts.get(chat_id).keys())):
+                current_price = get_data(coin_id)
+                if current_price is None:
+                    error = True
+                    continue
+                # Check min alerts
+                if coin_id in self.__min_alerts.get(chat_id):
+                    if current_price <= self.__min_alerts.get(chat_id).get(coin_id):
+                        message += f"{coin_id.capitalize()} is currently at {current_price} € " \
+                                    f"(<{self.__min_alerts.get(chat_id).get(coin_id)} €)\n"
+                        self.__min_alerts.get(chat_id).pop(coin_id, None)
+                        self.write_alerts_to_disk()
+                # Check max alert
+                if coin_id in self.__max_alerts.get(chat_id):
+                    if current_price >= self.__max_alerts.get(chat_id).get(coin_id):
+                        message += f"{coin_id.capitalize()} is currently at {current_price} € " \
+                                    f"(>{self.__max_alerts.get(chat_id).get(coin_id)} €)\n"
+                        self.__max_alerts.get(chat_id).pop(coin_id, None)
+                        self.write_alerts_to_disk()
+            if error and chat_id in self.__error_notifications:
+                self.__bot.send_message(chat_id, "Error while fetching current price!")
+            if message != "":
+                self.__bot.send_message(chat_id, message)
 
     def help_command(self, message):
         """
@@ -432,33 +467,10 @@ class CryptoTelegramBot:
             self.__bot.send_message(chat_id, "Added this chat to error notifications")
         self.save_error_notifications()
 
-    def bot_messages(self):
+    async def bot_messages(self):
         print("Message received!")
 
-        @self.__bot.message_handler(commands=["p"])
-        @self.is_user_authorized
-        def price_handler(message):
-            self.price_command(message)
 
-        @self.__bot.message_handler(commands=["a"])
-        @self.is_user_authorized
-        def alert_handler(message):
-            self.alert_command(message)
-
-        @self.__bot.message_handler(commands=["h"])
-        @self.is_user_authorized
-        def help_handler(message):
-            self.help_command(message)
-
-        @self.__bot.message_handler(commands=["f"])
-        @self.is_user_authorized
-        def favourite_handler(message):
-            self.favourite_command(message)
-
-        @self.__bot.message_handler(commands=["e"])
-        @self.is_user_authorized
-        def error_handler(message):
-            self.error_command(message)
 
 
 def main():
