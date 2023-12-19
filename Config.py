@@ -1,12 +1,13 @@
 from dotenv import load_dotenv
 import os
-HELP_TEXT = {"!p [coin_name / 'all']": "Gets graphs for a given coin",
-             "!a [min / max] [coin_name] [amount]": "Adds an alert for a given coin",
-             "!a": "Lists all alerts",
-             "!f [short_name] [full_name]": "Adds a short version of a given full name",
-             "!f": "Lists all favourites",
-             "!f remove [short_name]": "Removes a favourite",
-             "!e": "Toggles error notifications for this chat"}
+PREFIX = "/"
+HELP_TEXT = {"/p [coin_name / 'all']": "Gets graphs for a given coin",
+             "/a [min / max] [coin_name] [amount]": "Adds an alert for a given coin",
+             "/a": "Lists all alerts",
+             "/f [short_name] [full_name]": "Adds a short version of a given full name",
+             "/f": "Lists all favourites",
+             "/f remove [short_name]": "Removes a favourite",
+             "/e": "Toggles error notifications for this chat"}
 DIRECTORY = "data"
 MIN_ALERT_FILE = f"{DIRECTORY}{os.sep}min_alerts.json"
 MAX_ALERT_FILE = f"{DIRECTORY}{os.sep}max_alerts.json"
