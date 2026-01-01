@@ -1,4 +1,4 @@
-FROM python:3.11-buster
+FROM python:3.14
 
 # Uncomment everything below if not running rootless Docker
 
@@ -13,6 +13,6 @@ COPY *.py ./
 COPY requirements.txt ./
 COPY .env ./
 
-RUN pip3.11 install -r requirements.txt
+RUN pip3.14 install -r requirements.txt
 
 CMD ["python3", "CryptoTelegramBot.py"]
